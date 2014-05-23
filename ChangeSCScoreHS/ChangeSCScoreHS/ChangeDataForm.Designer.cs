@@ -113,6 +113,7 @@
             // 
             this.cbxTotal.DisplayMember = "Text";
             this.cbxTotal.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            this.cbxTotal.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbxTotal.FormattingEnabled = true;
             this.cbxTotal.ItemHeight = 19;
             this.cbxTotal.Location = new System.Drawing.Point(116, 71);
@@ -170,6 +171,7 @@
             // 
             this.cbxSScore.DisplayMember = "Text";
             this.cbxSScore.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            this.cbxSScore.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbxSScore.FormattingEnabled = true;
             this.cbxSScore.ItemHeight = 19;
             this.cbxSScore.Location = new System.Drawing.Point(116, 115);
@@ -182,6 +184,7 @@
             // 
             this.cbxAScore.DisplayMember = "Text";
             this.cbxAScore.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            this.cbxAScore.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbxAScore.FormattingEnabled = true;
             this.cbxAScore.ItemHeight = 19;
             this.cbxAScore.Location = new System.Drawing.Point(116, 158);
