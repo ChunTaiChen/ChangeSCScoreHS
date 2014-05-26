@@ -173,22 +173,22 @@ namespace ChangeSCScoreHS
             }
 
             // 檢查該修課是否已存在
-            List<string> chkSCList = new List<string>();
-            string chkStr = "select ref_sc_attend_id from sce_take where ref_exam_id="+newTSExamID;
+            Dictionary<string, string> chkSCDict = new Dictionary<string, string>();
+            string chkStr = "select ref_sc_attend_id,extension from sce_take where ref_sc_attend_id in(" + string.Join(",", _SCAttendIDList.ToArray()) + ") and ref_exam_id=" + newTSExamID;
             QueryHelper qhchk = new QueryHelper();
             DataTable qhchkDt = qhchk.Select(chkStr);
             foreach (DataRow dr in qhchkDt.Rows)
-                chkSCList.Add(dr[0].ToString());
-
+            {
+                string ssid = dr[0].ToString();
+                if (!chkSCDict.ContainsKey(ssid))
+                    chkSCDict.Add(ssid, dr[1].ToString());
+            }
 
             // 寫入定期/平時成績
             List<string> sbInsert = new List<string>();
+            List<string> sbUpdate = new List<string>();
             foreach (string scID in _SCAttendIDList)
             {
-                // 有寫入過不寫入
-                if (chkSCList.Contains(scID))
-                    continue;
-
                 string ss = "", sa = "";
                 // 定期
                 if (SSDict.ContainsKey(scID))
@@ -206,8 +206,34 @@ namespace ChangeSCScoreHS
                 elm.SetElementValue("AssignmentScore", sa);
                 elm.SetElementValue("Text", "");
 
-                string str = @"insert into sce_take(ref_sc_attend_id,ref_exam_id,score,extension) values(" + scID + "," + newTSExamID + ",0,'" + elm.ToString() + "');";
-                sbInsert.Add(str);
+                string str = "";
+                // 已存在以定期為主，只修改平時成績
+                if (chkSCDict.ContainsKey(scID))
+                {
+                    XElement elmss = null;
+                    string sse = chkSCDict[scID];
+                    try
+                    {
+                        elmss = XElement.Parse(sse);
+                    }
+                    catch (Exception ex) { }
+
+                    if (elmss == null)
+                        elmss = elm;
+                    else
+                    {
+                        // 只修改平時
+                        elmss.SetElementValue("AssignmentScore", sa); 
+                    }
+
+                    str = @"update  sce_take set extension='" + elmss.ToString() + "' where ref_sc_attend_id=" + scID + " and ref_exam_id=" + newTSExamID;
+                    sbUpdate.Add(str);
+                }
+                else
+                {
+                    str = @"insert into sce_take(ref_sc_attend_id,ref_exam_id,score,extension) values(" + scID + "," + newTSExamID + ",0,'" + elm.ToString() + "');";
+                    sbInsert.Add(str);
+                }
             }
                 try
                 {
@@ -217,13 +243,20 @@ namespace ChangeSCScoreHS
                         foreach (string str in sbInsert)
                             uhIns.Execute(str);
                     }
+
+                    if (sbUpdate.Count > 0)
+                    {
+                        UpdateHelper uhUpdate = new UpdateHelper();
+                        foreach (string str in sbUpdate)
+                            uhUpdate.Execute(str);
+                    }
                 }
                 catch (Exception ex)
                 {
                     FISCA.Presentation.Controls.MsgBox.Show("資料新增錯誤：" + ex.Message);
                 }
             
-            FISCA.Presentation.Controls.MsgBox.Show("資料轉換新增成功.");
+            FISCA.Presentation.Controls.MsgBox.Show("資料轉換完成.");
             btnRun.Enabled = true;
         }
 
@@ -238,7 +271,7 @@ namespace ChangeSCScoreHS
 
             string idList=string.Join(",",StudIDList.ToArray());
             // 修改課程
-            string query1 = @"select distinct course.id as course_id,course.extensions as course_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.school_year="+SchoolYear+" and course.semester="+Semester+" and sc_attend.ref_student_id in("+idList+")";
+            string query1 = @"select distinct course.id as course_id,course.extensions as course_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.ref_exam_template_id not in(5,6) and course.school_year=" + SchoolYear + " and course.semester=" + Semester + " and sc_attend.ref_student_id in(" + idList + ")";
             QueryHelper qh1 = new QueryHelper();
             DataTable dt1 = qh1.Select(query1);
             foreach (DataRow dr1 in dt1.Rows)
@@ -284,13 +317,16 @@ namespace ChangeSCScoreHS
             if (sb1.Count > 0)
             {
                 UpdateHelper uh1 = new UpdateHelper();
-                uh1.Execute(string.Join("",sb1.ToArray()));
+                foreach (string str in sb1)
+                {
+                    uh1.Execute(str);
+                }
             }
 
             _SCAttendIDList.Clear();
 
             // 修改修課
-            string query2 = @"select sc_attend.id as sc_attend_id, sc_attend.extensions as sc_attend_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.school_year="+SchoolYear+" and course.semester="+Semester+" and sc_attend.ref_student_id in("+idList+")";
+            string query2 = @"select sc_attend.id as sc_attend_id, sc_attend.extensions as sc_attend_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.ref_exam_template_id not in(5,6) and course.school_year=" + SchoolYear + " and course.semester=" + Semester + " and sc_attend.ref_student_id in(" + idList + ")";
             QueryHelper qh2 = new QueryHelper();
             DataTable dt2 = qh1.Select(query2);
             foreach (DataRow dr2 in dt2.Rows)
@@ -335,7 +371,8 @@ namespace ChangeSCScoreHS
             if (sb2.Count > 0)
             {
                 UpdateHelper uh2 = new UpdateHelper();
-                uh2.Execute(string.Join("",sb2.ToArray()));
+                foreach(string str in sb2)
+                    uh2.Execute(str);
             }
 
 
