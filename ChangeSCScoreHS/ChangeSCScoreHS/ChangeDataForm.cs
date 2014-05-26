@@ -172,10 +172,23 @@ namespace ChangeSCScoreHS
                 SADict.Add(scid, ascore);
             }
 
+            // 檢查該修課是否已存在
+            List<string> chkSCList = new List<string>();
+            string chkStr = "select ref_sc_attend_id from sce_take where ref_exam_id="+newTSExamID;
+            QueryHelper qhchk = new QueryHelper();
+            DataTable qhchkDt = qhchk.Select(chkStr);
+            foreach (DataRow dr in qhchkDt.Rows)
+                chkSCList.Add(dr[0].ToString());
+
+
             // 寫入定期/平時成績
-            StringBuilder sbInsert = new StringBuilder();
+            List<string> sbInsert = new List<string>();
             foreach (string scID in _SCAttendIDList)
             {
+                // 有寫入過不寫入
+                if (chkSCList.Contains(scID))
+                    continue;
+
                 string ss = "", sa = "";
                 // 定期
                 if (SSDict.ContainsKey(scID))
@@ -185,20 +198,24 @@ namespace ChangeSCScoreHS
                 if (SADict.ContainsKey(scID))
                     sa = SADict[scID];
 
+                if (ss == "" && sa == "")
+                    continue;
+
                 XElement elm = new XElement("Extension");
                 elm.SetElementValue("Score", ss);
                 elm.SetElementValue("AssignmentScore", sa);
                 elm.SetElementValue("Text", "");
 
                 string str = @"insert into sce_take(ref_sc_attend_id,ref_exam_id,score,extension) values(" + scID + "," + newTSExamID + ",0,'" + elm.ToString() + "');";
-                sbInsert.AppendLine(str);
+                sbInsert.Add(str);
             }
                 try
                 {
-                    if (sbInsert.Length > 0)
+                    if (sbInsert.Count > 0)
                     {
                         UpdateHelper uhIns = new UpdateHelper();
-                        uhIns.Execute(sbInsert.ToString());
+                        foreach (string str in sbInsert)
+                            uhIns.Execute(str);
                     }
                 }
                 catch (Exception ex)
@@ -216,8 +233,8 @@ namespace ChangeSCScoreHS
         /// <param name="newExamID"></param>
         private void EditCourseSCAttendExtesions(string oldExamID,string newExamID,List<string> StudIDList,int SchoolYear,int Semester)
         {
-            StringBuilder sb1 = new StringBuilder();
-            StringBuilder sb2 = new StringBuilder();
+            List<string> sb1 = new List<string>();
+            List<string> sb2 = new List<string>();
 
             string idList=string.Join(",",StudIDList.ToArray());
             // 修改課程
@@ -259,15 +276,15 @@ namespace ChangeSCScoreHS
                         }
 
                         string updateStr = @"update course set extensions='"+ext.ToString()+ "' where id="+id+";";
-                        sb1.AppendLine(updateStr);
+                        sb1.Add(updateStr);
                     }
                 }
             }
 
-            if (sb1.Length > 0)
+            if (sb1.Count > 0)
             {
                 UpdateHelper uh1 = new UpdateHelper();
-                uh1.Execute(sb1.ToString());
+                uh1.Execute(string.Join("",sb1.ToArray()));
             }
 
             _SCAttendIDList.Clear();
@@ -310,15 +327,15 @@ namespace ChangeSCScoreHS
                         }
 
                         string updateStr = @"update sc_attend set extensions='" + ext.ToString() + "' where id=" + id + ";";
-                        sb2.AppendLine(updateStr);
+                        sb2.Add(updateStr);
                     }
                 }
             }
 
-            if (sb2.Length > 0)
+            if (sb2.Count > 0)
             {
                 UpdateHelper uh2 = new UpdateHelper();
-                uh2.Execute(sb2.ToString());
+                uh2.Execute(string.Join("",sb2.ToArray()));
             }
 
 
