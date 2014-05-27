@@ -108,7 +108,15 @@ namespace ChangeSCScoreHS
             // A Score
             Dictionary<string, string> SADict = new Dictionary<string, string>();
 
+            if (_SCAttendIDList.Count == 0)
+            {
+                FISCA.Presentation.Controls.MsgBox.Show("沒有修課");
+                btnRun.Enabled = true;
+                return;
+            }
             string queryKey = string.Join(",", _SCAttendIDList.ToArray());
+
+            
 
             // 讀取舊定期成績
             string querySS = @"select id,ref_sc_attend_id,extension from sce_take where ref_sc_attend_id in("+queryKey+") and ref_exam_id="+oldSSExamID;
@@ -174,7 +182,7 @@ namespace ChangeSCScoreHS
 
             // 檢查該修課是否已存在
             Dictionary<string, string> chkSCDict = new Dictionary<string, string>();
-            string chkStr = "select ref_sc_attend_id,extension from sce_take where ref_sc_attend_id in(" + string.Join(",", _SCAttendIDList.ToArray()) + ") and ref_exam_id=" + newTSExamID;
+            string chkStr = "select ref_sc_attend_id,extension from sce_take where ref_sc_attend_id in(" + queryKey + ") and ref_exam_id=" + newTSExamID;
             QueryHelper qhchk = new QueryHelper();
             DataTable qhchkDt = qhchk.Select(chkStr);
             foreach (DataRow dr in qhchkDt.Rows)
@@ -271,7 +279,7 @@ namespace ChangeSCScoreHS
 
             string idList=string.Join(",",StudIDList.ToArray());
             // 修改課程
-            string query1 = @"select distinct course.id as course_id,course.extensions as course_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.ref_exam_template_id not in(5,6) and course.school_year=" + SchoolYear + " and course.semester=" + Semester + " and sc_attend.ref_student_id in(" + idList + ")";
+            string query1 = @"select distinct course.id as course_id,course.extensions as course_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.ref_exam_template_id is not null and course.ref_exam_template_id not in(5,6) and course.school_year=" + SchoolYear + " and course.semester=" + Semester + " and sc_attend.ref_student_id in(" + idList + ")";
             QueryHelper qh1 = new QueryHelper();
             DataTable dt1 = qh1.Select(query1);
             foreach (DataRow dr1 in dt1.Rows)
@@ -302,13 +310,15 @@ namespace ChangeSCScoreHS
                                     {
                                         // 更換 ExamID
                                         if (elms3.Attribute("ExamID").Value == oldExamID)
-                                            elms3.Attribute("ExamID").SetValue(newExamID);
+                                        {
+                                            elms3.SetAttributeValue("ExamID", newExamID);                                            
+                                        }
                                     }                            
                                 }                            
                             }
                         }
 
-                        string updateStr = @"update course set extensions='"+ext.ToString()+ "' where id="+id+";";
+                        string updateStr = @"update course set extensions='" + elm.ToString() + "' where id=" + id + ";";
                         sb1.Add(updateStr);
                     }
                 }
@@ -326,7 +336,7 @@ namespace ChangeSCScoreHS
             _SCAttendIDList.Clear();
 
             // 修改修課
-            string query2 = @"select sc_attend.id as sc_attend_id, sc_attend.extensions as sc_attend_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.ref_exam_template_id not in(5,6) and course.school_year=" + SchoolYear + " and course.semester=" + Semester + " and sc_attend.ref_student_id in(" + idList + ")";
+            string query2 = @"select sc_attend.id as sc_attend_id, sc_attend.extensions as sc_attend_extensions from course inner join sc_attend on course.id=sc_attend.ref_course_id where course.ref_exam_template_id is not null and course.ref_exam_template_id not in(5,6) and course.school_year=" + SchoolYear + " and course.semester=" + Semester + " and sc_attend.ref_student_id in(" + idList + ")";
             QueryHelper qh2 = new QueryHelper();
             DataTable dt2 = qh1.Select(query2);
             foreach (DataRow dr2 in dt2.Rows)
@@ -353,16 +363,38 @@ namespace ChangeSCScoreHS
                         {
                             if (elms1.Attribute("Name") != null && elms1.Attribute("Name").Value == "GradeBook")
                             {
+
+
                                 foreach (XElement elms2 in elms1.Elements("Exam"))
                                 {
-                                        // 更換 ExamID
-                                    if (elms2.Attribute("ExamID").Value == oldExamID)
-                                        elms2.Attribute("ExamID").SetValue(newExamID);
+                                    // 更換 ExamID
+                                    if (elms2.Attribute("ExamID").Value == newExamID && elms2.Attribute("Score").Value=="")
+                                    {
+                                        elms2.Remove();
+                                    }
                                 }
                             }
                         }
 
-                        string updateStr = @"update sc_attend set extensions='" + ext.ToString() + "' where id=" + id + ";";
+
+                        foreach (XElement elms1 in elm.Elements("Extension"))
+                        {
+                            if (elms1.Attribute("Name") != null && elms1.Attribute("Name").Value == "GradeBook")
+                            {
+                               
+
+                                foreach (XElement elms2 in elms1.Elements("Exam"))
+                                {
+                                        // 更換 ExamID
+                                    if (elms2.Attribute("ExamID").Value == oldExamID)
+                                    {
+                                        elms2.SetAttributeValue("ExamID", newExamID);                                        
+                                    }
+                                }
+                            }
+                        }
+
+                        string updateStr = @"update sc_attend set extensions='" + elm.ToString() + "' where id=" + id + ";";
                         sb2.Add(updateStr);
                     }
                 }
